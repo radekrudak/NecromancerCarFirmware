@@ -2,7 +2,6 @@
 #include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
-#include <ArduinoWiFiServer.h>
 
 #include "OTA_setup.h"
 #include "comand_interpreter.h"
@@ -14,6 +13,7 @@
 #define STASSID "RadoslawPhone"
 #define STAPSK "Turkistan31"
 
+#define UDP_PORT 6969
 
 #define ENGINE_PIN_A D1
 #define ENGINE_PIN_B D2
@@ -29,12 +29,15 @@ const char* password = STAPSK;
 const char* ssid = "AC-ESP8266";
 const char* password = "TURKISTAN-13";
 
-IPAddress local_IP(192,168,4,22);
-IPAddress gateway(192,168,4,9);
+IPAddress local_IP(192,168,1,2);
+IPAddress gateway(192,168,1,1);
 IPAddress subnet(255,255,255,0);
 #endif
 
-ArduinoWiFiServer server(6969);
+// UDP
+WiFiUDP UDP;
+char packet[255];
+char reply[] = "Packet received!";
 
 ComandInterpreter interpreter(ENGINE_PIN_A,ENGINE_PIN_B,STEERING_PIN_A,STEERING_PIN_B);
 
@@ -57,7 +60,7 @@ void setup() {
   Serial.print("Soft-AP IP address = ");
   Serial.println(WiFi.softAPIP());
   WiFi.softAP(ssid);
-  WiFi.softAP(ssid, password, channel, hidden, max_connection)
+  //WiFi.softAP(ssid, password, channel, hidden, max_connection)
   #endif
 
   #ifdef CONNECT_TO_WIFI
@@ -74,27 +77,34 @@ void setup() {
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
-  server.begin();
+    // Begin listening to UDP port
+  UDP.begin(UDP_PORT);
+  Serial.print("Listening on UDP port ");
+  Serial.println(UDP_PORT);
+
 }
 
 void loop() {
-  interpreter.CheckComandTimeout();
   ArduinoOTA.handle();
-  WiFiClient client = server.available();     // returns first client which has data to read or a 'false' client
-  if (client) {                               // client is true only if it is connected and has data to read
-    String s = client.readStringUntil('\n');  // read the message incoming from one of the clients
-    s.trim();                                 // trim eventual \r
-    if(s[0] == 'r' | s[0]== 'R' )
+
+  // If packet received...
+  int packetSize = UDP.parsePacket();
+  if (packetSize) {
+    Serial.print("Received packet! Size: ");
+    Serial.println(packetSize); 
+    int len = UDP.read(packet, 255);
+    if (len > 0)
     {
-      interpreter.Reset();
-      client.print("RESETING \r\n");
+      packet[len] = '\0';
     }
-    else 
-    {
-      interpreter.ExecuteComand(s,client);
-    }
-    Serial.println(s);                        // print the message to Serial Monitor
-    //client.print(String(s));                   // this is only for the sending client
-    server.flush();                           // flush the buffers
+    Serial.print("Packet received: ");
+    Serial.println(packet);
+
+    // Send return packet
+    UDP.beginPacket(UDP.remoteIP(), UDP.remotePort());
+    UDP.write(reply);
+    UDP.endPacket();
+
   }
+
 }
