@@ -3,6 +3,7 @@
 import socket
 import argparse
 import time
+import sys
 #parser = argparse.ArgumentParser(description='Terminal program for comunication with ESP8266 controing RC model car')
 #parser.add_argument('comand_for_car', metavar='CMD', type=str, required=False,
 #                    help='string contaning coad to be sent to car')
@@ -13,7 +14,11 @@ import time
 
 UDP_IP = "192.168.1.2"
 UDP_PORT = 6969
+
 MESSAGE = b"Hello, World!"
+if len(sys.argv) > 1:
+    MESSAGE = bytes(sys.argv[1], "utf-8")
+
 bufferSize = 1024
 
 print("UDP target IP: %s" % UDP_IP)

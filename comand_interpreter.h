@@ -11,13 +11,17 @@ class ComandInterpreter{
   int SteeringPinA =0;
   int SteeringPinB =0;
 
+  int HeadLightPin = 0;
+  int BackLightPin = 0;
+
   size_t ComandStartTime = 0; //0 means no comand running 
 
-  size_t TimeoutTime = 100; // in miliseconds 
+  size_t TimeoutTime = 500; // in miliseconds 
 
   public:
-  ComandInterpreter(int EngAPinA, int EngAPinB, int SteeringPinAArg, int SteeringPinBArg):
-  EngineAPinA(EngAPinA), EngineAPinB(EngAPinB),SteeringPinA(SteeringPinAArg),SteeringPinB(SteeringPinBArg)
+  ComandInterpreter(int EngAPinA, int EngAPinB, int SteeringPinAArg, int SteeringPinBArg, int HeadLightPinArg, int BackLightPinArg):
+    EngineAPinA(EngAPinA), EngineAPinB(EngAPinB),SteeringPinA(SteeringPinAArg),SteeringPinB(SteeringPinBArg)
+    ,HeadLightPin(HeadLightPinArg),BackLightPin(BackLightPinArg)
   {
     ;
   }
@@ -31,32 +35,7 @@ class ComandInterpreter{
 
     UpdateHardware();
   }
-  String PopToken(String &StringToPop)
-  {
-    long IndexOfSeparator = StringToPop.indexOf(" ");
-    
-    if (-1 == IndexOfSeparator)
-    { 
-      if(StringToPop.indexOf("\n") != -1)
-        {
-          IndexOfSeparator = StringToPop.indexOf("\n");
-        }
-        else{
-          return "";
-        }
-    }
-    //Serial.println(IndexOfSeparator);
-    String token = StringToPop.substring(0,IndexOfSeparator);
-    StringToPop.remove(0,IndexOfSeparator+1);
-    return token;
-  }
-  void Tokenize(String StringToTokenize)
-  {
-    for(int i=0;i<3;i++)
-    {
-      TokenVectorStorage[i] = PopToken(StringToTokenize);
-    }
-  }
+
   void UpdateHardware()
   {
     //engine forward and backward
@@ -91,36 +70,40 @@ class ComandInterpreter{
       digitalWrite(SteeringPinA,0);
       digitalWrite(SteeringPinB,0);
     } 
+    
+    digitalWrite(HeadLightPin, HeadLight);    
+    digitalWrite(BackLightPin, BackLight);    
+
 
   }
-  void ExecuteComand(String ComandToParse, WiFiClient &client )
+
+  bool interpretComand(byte *CommandBuffer)
   {
-    Tokenize(ComandToParse);
-    EngineAThrotle = TokenVectorStorage[0].toInt();
-    SteeringEngine = TokenVectorStorage[1].toInt();
-    if (TokenVectorStorage[2][0] == '0')
-    {
-       HeadLight = false;
+    EngineAThrotle = CommandBuffer[0];
+    SteeringEngine = CommandBuffer[1];
+    byte flags = CommandBuffer[2];
+
+    if (bitRead(flags, 7)){
+       EngineAThrotle *= -1; 
     }
-    if (TokenVectorStorage[2][0] == '1')
-    {
-       HeadLight = true;
+    if (bitRead(flags, 6)){
+       SteeringEngine *= -1; 
     }
 
-    if (TokenVectorStorage[2][1] == '0')
-    {
-       BackLight = false;
-    }
-    if (TokenVectorStorage[2][1] == '1')
-    {
-       BackLight = true;
-    }
 
+    HeadLight = bitRead(flags, 1);
+
+    BackLight = bitRead(flags, 0);
+    
     UpdateHardware();
     ComandStartTime = millis();
-    client.print(String(EngineAThrotle)+" "+String(SteeringEngine)+
+  
+    Serial.print(String(EngineAThrotle)+" "+String(SteeringEngine)+
     " "+String(HeadLight)+" "+String(BackLight)+" "+String(ComandStartTime)+"\r\n" );
+
+    return true;
   }
+
   void CheckComandTimeout()
   {
     if ((millis() - ComandStartTime) > TimeoutTime)
