@@ -13,13 +13,15 @@ electronics out and replace it with my own.
 When i saw Redditors speculating that Steam Deck wasn't used as RC
 controlled idea expanded.
 
+# Architecture
 On the car side hardware consist of ESP8266 (powered by batteries, held in build into car chassis holder, rough boost converter set at 5V)  driving L9110S double H bridge module (powered by batteries directly) ESP8266 hosts it’s own access point (aka hot spot)  and listens for UDP packets that consist of 3 bytes:
 
  First byte holds throttle value 
  Second bytes wheel drive 
  Third holds flags (7 = most significant bit- 0 = least significant): 
+
     7 - is throttle negative ( 1 - yes, 0 - no)
     6 - is steering wheel negative ( 1- yes, 0 - no)
-
+    5-2 - unused
     1 - is head light on
     0 - is back light on
